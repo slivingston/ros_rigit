@@ -15,4 +15,13 @@ add_message_files(
 generate_messages()
 
 catkin_package()
-install()
+install(PROGRAMS
+  nodes/pose_listener.py
+  nodes/rigit_tlistener.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+install(FILES
+  src/__init__.py
+  src/rigit.py
+  DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
+)

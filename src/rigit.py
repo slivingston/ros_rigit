@@ -1,9 +1,14 @@
-import numpy
+"""
+SCL; 18 Aug 2013
+"""
+
+import numpy as np
 import numpy.linalg
 from numpy import *
 
 import time
 import itertools
+
 
 def rigit(body, world):
     assert shape(world)[0] == 3 and shape(body)[0] == 3, 'Only accepts points in R^3. Maybe try transposing the data matrices?'
@@ -16,27 +21,6 @@ def rigit(body, world):
     body_nc = body - centroid_body[:,newaxis]
     world_nc = world - centroid_world[:,newaxis]
 
-    # M = zeros((4,4))
-
-    # for i in range(npoints):
-
-    #     a = array([0., body_nc[0,i], body_nc[1,i], body_nc[2,i]])
-    #     b = array([0., world_nc[0,i], world_nc[1,i], world_nc[2,i]])
-
-    #     Ma = array([[a[0], -a[1], -a[2], -a[3]],
-    #               [a[1], a[0], a[3], -a[2]],
-    #               [a[2], -a[3], a[0], a[1]],
-    #               [a[3], a[2], -a[1], a[0]]])
-        
-    #     Mb = array([[b[0], -b[1], -b[2], -b[3]],
-    #               [b[1], b[0], -b[3], b[2]],
-    #               [b[2], b[3], b[0], -b[1]],
-    #               [b[3], -b[2], b[1], b[0]]])
-
-    #     M = M + dot(Ma.T,Mb)
-
-    # The following vectorized code replaces the above
-        
     a_all = vstack((zeros(npoints), body_nc)).T
     b_all = vstack((zeros(npoints), world_nc)).T
 
@@ -53,7 +37,7 @@ def rigit(body, world):
 
     M = tensordot(Ma_all, Mb_all, axes=([0,2],[0,2]))
 
-    E, D = numpy.linalg.eig(M)
+    E, D = np.linalg.eig(M)
 
     max_idx = E.argmax()
 
@@ -82,69 +66,68 @@ def rigit(body, world):
 
 def rigit_nn(body, world):
     p = shape(body)[1]; q = shape(world)[1]
-    
-    idx_corresp = zeros(q, dtype=int)
 
-    for i in range(q):
-        dist_list = ((body - world[:,i][:,newaxis])**2).sum(0)
+    idx_corresp = zeros(p, dtype=int)
+    for i in range(p):
+        dist_list = ((body[:,i][:,newaxis] - world)**2).sum(0)
         idx_corresp[i] = dist_list.argmin()
-    
-    return rigit(body[:,idx_corresp], world)
 
-def best_matching(body, world):
-    p = shape(body)[1]; q = shape(world)[1]
+    return rigit(body, world[:,idx_corresp]), idx_corresp
 
-    err2 = 0
-    idx_corresp = zeros(q)
-
-    for i in range(q):
-        dist_list = ((body - world[:,i][:,newaxis])**2).sum(0)
-        err2_cur = dist_list.min()
-        idx_corresp[i] = dist_list.argmin()
-        err2 = err2 + err2_cur
-    
-    err = sqrt(err2)
-
-    return err, idx_corresp
-        
-def rigit_ransac(body, world, max_iters, tol):
+def rigit_ransac(body, world, max_iters, tol, hint=None):
     assert hasattr(itertools, 'permutations'), 'Needs itertools.permutations(). Please make sure the system runs Python 2.6 or higher.'
     assert shape(world)[0] == 3 and shape(body)[0] == 3, 'Only accepts points in R^3. Maybe try transposing the data matrices?'
 
     p = shape(body)[1]; q = shape(world)[1]
-
-    iter = 0
+    assert p > 0 and q > 0
+    max_slength = min(p,q)
+    if hint is not None:
+        hint = [hi for hi in hint if hi < q]
+        if len(hint) < max_slength:
+            hint = None
+    num_iter = 0
     err = 1e40                  # some large number
-    idx_corresp = [];
+    R, T, idx_corresp = None, None, None
 
-    while iter < max_iters and err > tol:
-        world_rand_idx = numpy.random.permutation(q)
-        world_rand_pts = world[:, world_rand_idx[:4]]
-    
-        for body_rand_idx in itertools.permutations(range(p), 4):
-            body_rand_pts = body[:, body_rand_idx]
+    # Support occlusion of up to one point
+    max_iters /= 2
+    for slength in (max_slength, max_slength-1):
+        while num_iter < max_iters and err > tol:
+            if hint is not None:
+                world_rand_idx = hint
+                hint = None
+            else:
+                world_rand_idx = np.random.permutation(q)
+            world_rand_pts = world[:, world_rand_idx[:slength]]
 
-            R, T, err_part = rigit(body_rand_pts, world_rand_pts)
+            for body_rand_idx in itertools.permutations(range(p), slength):
+                body_rand_pts = body[:, body_rand_idx]
+                R, T, err = rigit(body_rand_pts, world_rand_pts)
+                if R[2,2] < 0:
+                    continue
 
-            if err_part < tol:
-                world_pts_tr = dot(R.T, world - T[:,newaxis])
-                err, idx_corresp = best_matching(body, world_pts_tr)
+                if err <= tol:
+                    
+                    # world_pts_tr = dot(R.T, world - T[:,newaxis])
+                    # (local_R, local_T, local_err), idx_corresp = rigit_nn(body, world_pts_tr)
+                    # print "\t\t", local_err
+                    # R = np.dot(local_R, R)
+                    # T = np.dot(local_R, T) + local_T
+                    break
+
+            num_iter = num_iter + 1
+
+        if err <= tol:
+            is_successful = True
+            break
+        else:
+            is_successful = False
         
-            iter = iter + 1
-
-            if iter > max_iters or err < tol:
-                break
-
-    if err < tol:
-        is_successful = True
-    else:
-        is_successful = False
-        
-    return R, T, err, idx_corresp, is_successful, iter
+    return R, T, err, world_rand_idx[:slength], is_successful, num_iter
 
 if __name__ == '__main__':
 
-    body = numpy.random.rand(3,10)
+    body = np.random.rand(3,10)
     
     R = array([[2./3, 2./3, -1./3], [-1./3, 2./3, 2./3], [2./3, -1./3, 2./3]])
     T = array([1., 2., 3.])
@@ -166,11 +149,11 @@ if __name__ == '__main__':
     # print err
 
     time_start = time.time()
-    R_ransac, T_ransac, err, idx_corresp, is_successful, iter = rigit_ransac(body, world[:,:8], 50000, 1e-8)
+    R_ransac, T_ransac, err, idx_corresp, is_successful, num_iter = rigit_ransac(body, world[:,:8], 50000, 1e-8)
     time_elapsed = time.time() - time_start
-    print 'total iterations = %d' % (iter)
+    print 'total iterations = %d' % (num_iter)
     print 'Time elapsed = %g (s)' % (time_elapsed)
-    print 'Iterations per second = %g' % (iter/time_elapsed)
+    print 'Iterations per second = %g' % (num_iter/time_elapsed)
     print R_ransac
     print T_ransac
     print err
