@@ -6,6 +6,8 @@ project(ros_rigit)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS rospy message_generation)
 
+catkin_python_setup()
+
 add_message_files(
   DIRECTORY msg
   FILES
@@ -19,9 +21,4 @@ install(PROGRAMS
   nodes/pose_listener.py
   nodes/rigit_tlistener.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-install(FILES
-  src/__init__.py
-  src/rigit.py
-  DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
 )
