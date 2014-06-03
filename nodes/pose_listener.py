@@ -2,6 +2,9 @@
 """
 Echo transforms to terminal and publish to tf.
 
+Based on source code by Shuo Han.
+https://github.com/hanshuo/ros_rigit.git
+
 SCL; 31 May 2014
 """
 

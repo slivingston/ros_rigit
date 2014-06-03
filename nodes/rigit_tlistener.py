@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 """
+
+
+Based on source code by Shuo Han.
+https://github.com/hanshuo/ros_rigit.git
+
 SCL; 3 Jun 2014
 """
 
