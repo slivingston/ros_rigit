@@ -1,5 +1,5 @@
 """
-SCL; 18 Aug 2013
+SCL; 3 Jun 2014
 """
 
 import numpy as np
@@ -11,8 +11,10 @@ import itertools
 
 
 def rigit(body, world):
-    assert shape(world)[0] == 3 and shape(body)[0] == 3, 'Only accepts points in R^3. Maybe try transposing the data matrices?'
-    assert shape(world)[1] == shape(body)[1], 'Number of world points and body points does not match'
+    assert shape(world)[0] == 3 and shape(body)[0] == 3, \
+        'Only accepts points in R^3. Maybe try transposing the data matrices?'
+    assert shape(world)[1] == shape(body)[1], \
+        'Number of world points and body points does not match'
     npoints = shape(world)[1]
 
     centroid_body = mean(body, 1)
@@ -75,19 +77,22 @@ def rigit_nn(body, world):
     return rigit(body, world[:,idx_corresp]), idx_corresp
 
 def rigit_ransac(body, world, max_iters, tol, hint=None):
-    assert hasattr(itertools, 'permutations'), 'Needs itertools.permutations(). Please make sure the system runs Python 2.6 or higher.'
-    assert shape(world)[0] == 3 and shape(body)[0] == 3, 'Only accepts points in R^3. Maybe try transposing the data matrices?'
+    assert hasattr(itertools, 'permutations'), \
+        'Needs itertools.permutations(). Please make sure the system runs Python 2.6 or higher.'
+    assert shape(world)[0] == 3 and shape(body)[0] == 3, \
+        'Only accepts points in R^3. Maybe try transposing the data matrices?'
 
     p = shape(body)[1]; q = shape(world)[1]
-    assert p > 0 and q > 0
-    max_slength = min(p,q)
+    assert p > 0 and q > 0, \
+        "Insufficiently many world or reference body points."
+    max_slength = min(min(p,q), 4)
     if hint is not None:
         hint = [hi for hi in hint if hi < q]
         if len(hint) < max_slength:
             hint = None
     num_iter = 0
     err = 1e40                  # some large number
-    R, T, idx_corresp = None, None, None
+    R, T = None, None
 
     # Support occlusion of up to one point
     max_iters /= 2
@@ -105,6 +110,12 @@ def rigit_ransac(body, world, max_iters, tol, hint=None):
                 R, T, err = rigit(body_rand_pts, world_rand_pts)
                 if R[2,2] < 0:
                     continue
+                # print R
+                # print T
+                # print err
+                # print "="*60
+                # if R[2,2] < 0:
+                #     continue
 
                 if err <= tol:
                     
@@ -129,7 +140,9 @@ if __name__ == '__main__':
 
     body = np.random.rand(3,10)
     
-    R = array([[2./3, 2./3, -1./3], [-1./3, 2./3, 2./3], [2./3, -1./3, 2./3]])
+    R = array([[2./3, 2./3, -1./3],
+               [-1./3, 2./3, 2./3],
+               [2./3, -1./3, 2./3]])
     T = array([1., 2., 3.])
 
     world = dot(R, body) + T[:,newaxis]
@@ -149,7 +162,8 @@ if __name__ == '__main__':
     # print err
 
     time_start = time.time()
-    R_ransac, T_ransac, err, idx_corresp, is_successful, num_iter = rigit_ransac(body, world[:,:8], 50000, 1e-8)
+    R_ransac, T_ransac, err, idx_corresp, is_successful, num_iter \
+        = rigit_ransac(body, world[:,:8], 10, 1e-8)
     time_elapsed = time.time() - time_start
     print 'total iterations = %d' % (num_iter)
     print 'Time elapsed = %g (s)' % (time_elapsed)
@@ -158,5 +172,3 @@ if __name__ == '__main__':
     print T_ransac
     print err
     print idx_corresp
-
-
