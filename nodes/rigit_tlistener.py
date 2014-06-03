@@ -98,15 +98,14 @@ class Listener:
 if __name__ == '__main__':
     max_freq = 20              # Running at 20 Hz maximum
 
-    if "-h" in sys.argv:
-        print "Usage: "+str(sys.argv[0])+" [FILE1 [...]]"
+    argv = rospy.myargv()
+    if "-h" in argv:
+        print "Usage: "+str(argv[0])+" [FILE1 [...]]"
         exit(1)
 
-    elif len(sys.argv) >= 2:
+    elif len(argv) >= 2:
         ref_poses = []
-        for fname in sys.argv[1:]:
-            if ":=" in fname:
-                break  # Start ignoring arguments at first remap statement
+        for fname in argv[1:]:
             with open(fname, "r") as f:
                 ref_poses.append((fname, np.loadtxt(f)))
     else:
