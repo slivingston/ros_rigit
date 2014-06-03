@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 """
-SCL; 14 Aug 2013
+Echo transforms to terminal and publish to tf.
+
+SCL; 31 May 2014
 """
+
 import roslib; roslib.load_manifest('ros_rigit')
 import rospy
 import tf
@@ -9,6 +12,7 @@ from ros_rigit.msg import pose_objects
 
 import numpy
 from numpy import *
+
 
 class Listener:
     def __init__(self):
@@ -31,7 +35,7 @@ class Listener:
             print T
             self.br.sendTransform(T,
                                   tf.transformations.quaternion_from_matrix(R),
-                                  rospy.Time.now(), p.name+str("/odom"), "/odom")
+                                  rospy.Time.now(), p.name+str("/base_link"), "/odom")
 
 if __name__ == '__main__':
     listener = Listener()
